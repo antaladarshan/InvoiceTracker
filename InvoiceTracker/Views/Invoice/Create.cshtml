@@ -1,0 +1,239 @@
+﻿@model InvoiceTracker.Models.Invoice
+@{
+    ViewBag.Title = "Create Invoice";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Create Invoice</h2>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 col-sm-12">
+            <label for="InvoiceNo">Invoice No:</label>
+            <span id="InvoiceNo">@ViewBag.InvoiceNo</span>
+        </div>
+        <div class="col-md-6 col-sm-12">
+            <label for="InvoiceDate">Invoice Date:</label>
+            <input type="text" class="form-control" id="InvoiceDate" name="InvoiceDate" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-6 col-sm-12">
+            <label for="PartyName">Party Name:</label>
+            @Html.DropDownList("PartyName", ViewBag.Parties as SelectList, "Select Party", new { @class = "form-control" })
+        </div>
+        <div class="col-md-6 col-sm-12">
+            <label for="GSTNo">GST No:</label>
+            <input type="text" class="form-control" id="GSTNo" name="GSTNo" readonly />
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-6 col-sm-12">
+            <label for="ContactNo">Contact No:</label>
+            <input type="text" class="form-control" id="ContactNo" name="ContactNo" readonly />
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12">
+            <button type="button" id="addItem" class="btn btn-success">ADD ITEM</button>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="table-responsive">
+                <table id="itemsTable" class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>SRNo</th>
+                            <th>Item Code</th>
+                            <th>Item Name</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>GST @@18%</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><input type="text" class="form-control item-code" /></td>
+                            <td><input type="text" class="form-control item-name" /></td>
+                            <td><input type="number" class="form-control item-qty" /></td>
+                            <td><input type="number" class="form-control item-rate" /></td>
+                            <td><input type="number" class="form-control item-gst" readonly value="18" /></td>
+                            <td><input type="number" class="form-control item-total" readonly /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3 justify-content-end">
+        <div class="col-md-2 col-sm-12">
+            <div class="form-group">
+                <label for="GrandTotal">Grand Total:</label>
+                <input type="text" class="form-control" id="GrandTotal" name="GrandTotal" readonly />
+            </div>
+            <div class="form-group">
+                <label for="Discount">Discount:</label>
+                <input type="text" class="form-control" id="Discount" name="Discount" />
+            </div>
+            <div class="form-group">
+                <label for="GSTAmount">GST Amount:</label>
+                <input type="text" class="form-control" id="GSTAmount" name="GSTAmount" readonly />
+            </div>
+            <div class="form-group">
+                <label for="NetAmount">Net Amount:</label>
+                <input type="text" class="form-control" id="NetAmount" name="NetAmount" readonly />
+            </div>
+            <button type="button" id="saveInvoice" class="btn btn-primary">SAVE INVOICE</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script>
+        $(document).ready(function () {
+         $('.item-qty, .item-rate, #Discount').on('blur', function () {
+        var value = $(this).val().trim(); 
+        if (!value.match(/^\d+$/)) {
+            $(this).val(''); 
+            alert('Please enter a valid integer value.');
+            }
+        });
+
+        $('#InvoiceDate').datepicker({
+            dateFormat: 'dd/mm/yy', 
+            changeMonth: true, 
+            changeYear: true, 
+            showButtonPanel: true, 
+            yearRange: '1900:+0' 
+        });
+        var rowCount = 2;
+
+        $('#addItem').click(function () {
+            var newRow = $('<tr>'); 
+            newRow.append('<td>' + rowCount + '</td>'); 
+            newRow.append('<td><input type="text" class="form-control item-code" /></td>');
+            newRow.append('<td><input type="text" class="form-control item-name" /></td>');
+            newRow.append('<td><input type="number" class="form-control item-qty" /></td>');
+            newRow.append('<td><input type="number" class="form-control item-rate" /></td>');
+            newRow.append('<td><input type="number" class="form-control item-gst" readonly value="18" /></td>');
+            newRow.append('<td><input type="number" class="form-control item-total" readonly /></td>');
+
+            $('#itemsTable tbody').append(newRow);
+
+            rowCount++; 
+        });
+
+        $('#PartyName').change(function () {
+            var partyID = $(this).val();
+            if (!partyID) { 
+                $('#GSTNo').val(''); 
+                $('#ContactNo').val('');
+                return;
+            }
+            $.ajax({
+                url: '/Invoice/GetPartyDetails',
+                type: 'POST',
+                data: { partyID: partyID },
+                success: function (data) {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        $('#ContactNo').val(data.ContactNo);
+                        $('#GSTNo').val(data.GSTNo);
+                    }
+                },
+                error: function () {
+                    alert('Failed to retrieve party details.');
+                }
+            });
+        });
+
+
+        $('#saveInvoice').click(function () {
+            var invoice = {
+                InvoiceNo: $('#InvoiceNo').text(),
+                PartyID: $('#PartyName').val(),
+                ContactNo: $('#ContactNo').val(),
+                InvoiceDate: $('#InvoiceDate').val(),
+                GSTNo: $('#GSTNo').val(),
+                Items: [],
+                GrandTotal: $('#GrandTotal').val(),
+                Discount: $('#Discount').val(),
+                GSTAmount: $('#GSTAmount').val(),
+                NetAmount: $('#NetAmount').val()
+            };
+
+            $('#itemsTable tbody tr').each(function () {
+                var item = {
+                    SRNo: $(this).find('td:eq(0)').text(),
+                    ItemCode: $(this).find('.item-code').val(),
+                    ItemName: $(this).find('.item-name').val(),
+                    Qty: $(this).find('.item-qty').val(),
+                    Rate: $(this).find('.item-rate').val(),
+                    GST: $(this).find('.item-gst').val(),
+                    Total: $(this).find('.item-total').val()
+                };
+                invoice.Items.push(item);
+            });
+
+            invoice.GrandTotal = $('#GrandTotal').val();
+            invoice.Discount = $('#Discount').val();
+            invoice.GSTAmount = $('#GSTAmount').val();
+            invoice.NetAmount = $('#NetAmount').val();
+
+            $.ajax({
+                url: '@Url.Action("SaveInvoice", "Invoice")',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(invoice),
+                success: function (response) {
+                    alert(response.message);
+                    window.location.reload();
+                },
+                    error: function() {
+                        alert('Failed to save invoice.');
+                    }
+            });
+        });
+
+        function calculateTotals() {
+            var grandTotal = 0;
+            var gstAmount = 0;
+            $('#itemsTable tbody tr').each(function () {
+                var qty = $(this).find('.item-qty').val();
+                var rate = $(this).find('.item-rate').val();
+                var total = qty * rate;
+                var gst = total * 0.18;
+                $(this).find('.item-total').val(total.toFixed(2));
+                grandTotal += total;
+                gstAmount += gst;
+            });
+            $('#GrandTotal').val(grandTotal.toFixed(2));
+            var discount = $('#Discount').val() || 0;
+            var discountedTotal = grandTotal - discount;
+            var netAmount = discountedTotal + gstAmount;
+            $('#GSTAmount').val(gstAmount.toFixed(2));
+            $('#NetAmount').val(netAmount.toFixed(2));
+        }
+
+        $(document).on('input', '.item-qty, .item-rate', function () {
+            calculateTotals();
+        });
+
+        $('#Discount').on('input', function () {
+            calculateTotals();
+        });
+    });
+    </script>
+}
